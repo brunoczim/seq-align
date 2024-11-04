@@ -1,4 +1,3 @@
-pub type Score = i64;
 pub type Letter = char;
 
 pub const GAP: Letter = '-';

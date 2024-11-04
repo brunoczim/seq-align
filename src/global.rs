@@ -1,6 +1,7 @@
 use crate::{
+    letter::{Letter, NormalizeLetter, GAP},
     matrix::AlignmentMatrix,
-    values::{Letter, NormalizeLetter, Score, GAP},
+    score::Score,
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -30,10 +31,10 @@ pub fn needleman_wunsch(
     config: GlobalAlignmentConfig,
 ) -> GlobalAlignmentResult {
     let matrix = compute_nw_matrix(row_seq, column_seq, config);
-    mount_best_nw_alignment(row_seq, column_seq, config, &matrix)
+    traceback_nw_best_alignment(row_seq, column_seq, config, &matrix)
 }
 
-pub fn mount_best_nw_alignment(
+pub fn traceback_nw_best_alignment(
     row_seq: &[Letter],
     column_seq: &[Letter],
     config: GlobalAlignmentConfig,
@@ -57,37 +58,23 @@ pub fn mount_best_nw_alignment(
         if current_i > 0 && current_j > 0 && top_left == maximum {
             current_i -= 1;
             current_j -= 1;
-            let row_letter = row_seq.get(current_i).normalize_letter();
-            let column_letter = column_seq.get(current_j).normalize_letter();
-
-            result.aligned_row_seq.push(row_letter);
-            result.aligned_column_seq.push(column_letter);
-
-            result.score += if row_letter == GAP || column_letter == GAP {
-                config.gap_weight
-            } else if row_letter == column_letter {
-                config.match_weight
-            } else {
-                config.mismatch_weight
-            };
+            traceback_nw_top_left(
+                row_seq,
+                column_seq,
+                config,
+                &mut result,
+                current_i,
+                current_j,
+            );
         } else if current_i > 0 && top == maximum {
             current_i -= 1;
-            let row_letter = row_seq.get(current_i).normalize_letter();
-
-            result.aligned_row_seq.push(row_letter);
-            result.aligned_column_seq.push(GAP);
-
-            result.score += config.gap_weight;
+            traceback_nw_top(row_seq, config, &mut result, current_i);
         } else {
             current_j -= 1;
-            let column_letter = column_seq.get(current_j).normalize_letter();
-
-            result.aligned_row_seq.push(GAP);
-            result.aligned_column_seq.push(column_letter);
-
-            result.score += config.gap_weight;
+            traceback_nw_left(column_seq, config, &mut result, current_j);
         }
     }
+
     result.aligned_row_seq.shrink_to_fit();
     result.aligned_column_seq.shrink_to_fit();
     result.aligned_row_seq.reverse();
@@ -102,7 +89,7 @@ pub fn compute_nw_matrix(
 ) -> AlignmentMatrix {
     let row_count = row_seq.len() + 1;
     let column_count = column_seq.len() + 1;
-    let mut matrix = AlignmentMatrix::new(row_count, column_count);
+    let mut matrix = AlignmentMatrix::zeroed(row_count, column_count);
     fill_nw_matrix_base(row_seq, column_seq, config, &mut matrix);
     fill_nw_matrix_content(row_seq, column_seq, config, &mut matrix);
     matrix
@@ -180,6 +167,52 @@ fn compute_nw_matrix_cell(
     let best_gap_score = best_gap_neighbor + config.gap_weight;
 
     matrix[[pred_i + 1, pred_j + 1]] = best_gap_score.max(no_gap_score);
+}
+
+fn traceback_nw_top_left(
+    row_seq: &[Letter],
+    column_seq: &[Letter],
+    config: GlobalAlignmentConfig,
+    result: &mut GlobalAlignmentResult,
+    current_i: usize,
+    current_j: usize,
+) {
+    let row_letter = row_seq.get(current_i).normalize_letter();
+    let column_letter = column_seq.get(current_j).normalize_letter();
+    result.aligned_row_seq.push(row_letter);
+    result.aligned_column_seq.push(column_letter);
+
+    result.score += if row_letter == GAP || column_letter == GAP {
+        config.gap_weight
+    } else if row_letter == column_letter {
+        config.match_weight
+    } else {
+        config.mismatch_weight
+    };
+}
+
+fn traceback_nw_top(
+    row_seq: &[Letter],
+    config: GlobalAlignmentConfig,
+    result: &mut GlobalAlignmentResult,
+    current_i: usize,
+) {
+    let row_letter = row_seq.get(current_i).normalize_letter();
+    result.aligned_row_seq.push(row_letter);
+    result.aligned_column_seq.push(GAP);
+    result.score += config.gap_weight;
+}
+
+fn traceback_nw_left(
+    column_seq: &[Letter],
+    config: GlobalAlignmentConfig,
+    result: &mut GlobalAlignmentResult,
+    current_j: usize,
+) {
+    let column_letter = column_seq.get(current_j).normalize_letter();
+    result.aligned_row_seq.push(GAP);
+    result.aligned_column_seq.push(column_letter);
+    result.score += config.gap_weight;
 }
 
 #[cfg(test)]
