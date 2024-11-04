@@ -1,4 +1,7 @@
-use seq_align::{global::GlobalAlignmentConfig, letter::Letter};
+use seq_align::{
+    global::{needleman_wunsch, GlobalAlignmentConfig, PrettyPrint},
+    letter::Letter,
+};
 
 const HOMO_SAPIENS: &[Letter] = &[
     'V', 'L', 'S', 'P', 'A', 'D', 'K', 'T', 'N', 'V', 'K', 'A', 'A', 'W', 'G',
@@ -111,5 +114,30 @@ const CONFIG: GlobalAlignmentConfig = GlobalAlignmentConfig {
 };
 
 fn main() {
-    let candidates = [];
+    let candidates = [
+        ("Equus Caballus", EQUUS_CABALLUS),
+        ("Odocoileus Virginianus", ODOCOILEUS_VIRGINIANUS),
+        ("Bos Taurus", BOS_TAURUS),
+        ("Sus Scrofa", SUS_SCROFA),
+        ("Chrysocyon Brachyurus", CHRYSOCYON_BRACHYURUS),
+        ("Gallus Gallus", GALLUS_GALLUS),
+        ("Oncorhynchus Mykiss", ONCORHYNCHUS_MYKISS),
+    ];
+
+    let human_name = "Homo Sapiens";
+    let human_sequence = HOMO_SAPIENS;
+
+    for (candidate_name, candidate_sequence) in candidates {
+        let result =
+            needleman_wunsch(human_sequence, candidate_sequence, CONFIG);
+        println!(
+            "{}",
+            PrettyPrint {
+                row_seq_name: human_name,
+                column_seq_name: candidate_name,
+                max_width: 75,
+                result: &result,
+            }
+        );
+    }
 }

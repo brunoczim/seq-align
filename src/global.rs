@@ -1,3 +1,5 @@
+use std::fmt;
+
 use crate::{
     letter::{Letter, NormalizeLetter, GAP},
     matrix::AlignmentMatrix,
@@ -203,6 +205,69 @@ fn traceback_nw_left(
     let column_letter = column_seq.get(current_j).normalize_letter();
     result.aligned_row_seq.push(GAP);
     result.aligned_column_seq.push(column_letter);
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct PrettyPrint<'a> {
+    pub row_seq_name: &'a str,
+    pub column_seq_name: &'a str,
+    pub result: &'a GlobalAlignmentResult,
+    pub max_width: usize,
+}
+
+impl<'a> fmt::Display for PrettyPrint<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "# score: {}\n", self.result.score)?;
+        write!(f, "# identity: {}\n", self.result.identity)?;
+        write!(f, "# sequence above: {}\n", self.row_seq_name)?;
+        write!(f, "# sequence below: {}\n", self.column_seq_name)?;
+        write!(f, "\n")?;
+        let length = self
+            .result
+            .aligned_row_seq
+            .len()
+            .max(self.result.aligned_column_seq.len());
+        let mut i = 0;
+        while i < length {
+            let block_start = i;
+            let block_end = length.min(block_start + self.max_width);
+            write!(f, "# block: {block_start}..{block_end}\n")?;
+            for k in block_start .. block_end {
+                write!(
+                    f,
+                    "{}",
+                    self.result.aligned_row_seq.get(k).normalize_letter()
+                )?;
+            }
+            write!(f, "\n")?;
+            for k in block_start .. block_end {
+                write!(
+                    f,
+                    "{}",
+                    self.result.aligned_column_seq.get(k).normalize_letter()
+                )?;
+            }
+            write!(f, "\n")?;
+            let row_block =
+                &self.result.aligned_row_seq[block_start .. block_end];
+            let column_block =
+                &self.result.aligned_column_seq[block_start .. block_end];
+            let mut identity_iter = row_block.iter().zip(column_block);
+            while let Some(k) =
+                (&mut identity_iter).position(|(row_letter, column_letter)| {
+                    row_letter == column_letter
+                })
+            {
+                for _ in 0 .. k {
+                    write!(f, " ")?;
+                }
+                write!(f, "*")?;
+            }
+            write!(f, "\n\n")?;
+            i = block_end;
+        }
+        Ok(())
+    }
 }
 
 #[cfg(test)]

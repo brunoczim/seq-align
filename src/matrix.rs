@@ -158,10 +158,28 @@ fn index_digit_count(k: usize) -> u32 {
     }
 }
 
+/**
+ * Example:
+```text
+matrix 5x4
+ |0 |1 |2 |3 |
+-|==+==+==+==|
+0| 0|-2|-4|-6|
+-|--+--+--+--|
+1|-2| 1|-1|-3|
+-|--+--+--+--|
+2|-4|-1| 2| 0|
+-|--+--+--+--|
+3|-6|-3| 0| 1|
+-|--+--+--+--|
+4|-8|-5|-2|-1|
+-|==+==+==+==|
+```
+ */
 #[derive(Debug, Clone, Copy)]
-pub struct Pretty<'a>(pub &'a AlignmentMatrix);
+pub struct PrettyPrint<'a>(pub &'a AlignmentMatrix);
 
-impl fmt::Display for Pretty<'_> {
+impl fmt::Display for PrettyPrint<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let Self(matrix) = self;
         write!(f, "matrix {}x{}\n", matrix.height(), matrix.width())?;
@@ -237,14 +255,34 @@ impl fmt::Display for Pretty<'_> {
     }
 }
 
+/**
+ * Example:
+```text
+matrix 5x4
+   |0 |1 |2 |3 |
+   |--+--+--+--|
+   |  |W |H |Y |
+-+-|==+==+==+==|
+0| | 0|-2|-4|-6|
+-+-|--+--+--+--|
+1|W|-2| 1|-1|-3|
+-+-|--+--+--+--|
+2|H|-4|-1| 2| 0|
+-+-|--+--+--+--|
+3|A|-6|-3| 0| 1|
+-+-|--+--+--+--|
+4|T|-8|-5|-2|-1|
+-+-|==+==+==+==|
+```
+ */
 #[derive(Debug, Clone, Copy)]
-pub struct PrettyLabeled<'a>(
+pub struct LabeledPrettyPrint<'a>(
     pub &'a AlignmentMatrix,
     pub &'a [Letter],
     pub &'a [Letter],
 );
 
-impl fmt::Display for PrettyLabeled<'_> {
+impl fmt::Display for LabeledPrettyPrint<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let Self(matrix, row_seq, col_seq) = self;
         write!(f, "matrix {}x{}\n", matrix.height(), matrix.width())?;
