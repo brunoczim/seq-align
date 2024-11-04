@@ -5,7 +5,6 @@ use crate::{
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[non_exhaustive]
 pub struct LocalAlignmentConfig {
     pub match_weight: Score,
     pub mismatch_weight: Score,
@@ -38,18 +37,19 @@ pub fn best_smith_waterman(
     config: LocalAlignmentConfig,
 ) -> LocalAlignmentResult {
     let matrix = compute_sw_matrix(row_seq, column_seq, config);
-    traceback_best_sw_alignment(row_seq, column_seq, config, &matrix)
+    traceback_best_sw_alignment(row_seq, column_seq, &matrix)
 }
 
 pub fn traceback_best_sw_alignment(
     row_seq: &[Letter],
     column_seq: &[Letter],
-    config: LocalAlignmentConfig,
     matrix: &AlignmentMatrix,
 ) -> LocalAlignmentResult {
     let (max_i, max_j) = matrix
         .argmax_rev()
         .unwrap_or((matrix.height() - 1, matrix.width() - 1));
+    let mut current_i = max_i;
+    let mut current_j = max_j;
 
     let initial_capacity = row_seq.len() + column_seq.len();
     let mut result = LocalAlignmentResult {
@@ -63,11 +63,9 @@ pub fn traceback_best_sw_alignment(
             end: max_j,
             data: Vec::with_capacity(initial_capacity),
         },
-        score: 0,
+        score: matrix[[max_i, max_j]],
     };
 
-    let mut current_i = max_i;
-    let mut current_j = max_j;
     while matrix[[current_i, current_j]] != 0 {
         let top_left = matrix[[current_i - 1, current_j - 1]];
         let top = matrix[[current_i - 1, current_j]];
@@ -83,17 +81,16 @@ pub fn traceback_best_sw_alignment(
             traceback_sw_top_left(
                 row_seq,
                 column_seq,
-                config,
                 &mut result,
                 current_i,
                 current_j,
             );
         } else if current_i > 0 && (top == maximum || top == 0) {
             current_i -= 1;
-            traceback_sw_top(row_seq, config, &mut result, current_i);
+            traceback_sw_top(row_seq, &mut result, current_i);
         } else {
             current_j -= 1;
-            traceback_sw_left(column_seq, config, &mut result, current_j);
+            traceback_sw_left(column_seq, &mut result, current_j);
         }
     }
 
@@ -176,7 +173,6 @@ fn compute_sw_matrix_cell(
 fn traceback_sw_top_left(
     row_seq: &[Letter],
     column_seq: &[Letter],
-    config: LocalAlignmentConfig,
     result: &mut LocalAlignmentResult,
     current_i: usize,
     current_j: usize,
@@ -187,19 +183,10 @@ fn traceback_sw_top_left(
     result.aligned_row_seq.data.push(row_letter);
     result.aligned_column_seq.start -= 1;
     result.aligned_column_seq.data.push(column_letter);
-
-    result.score += if row_letter == GAP || column_letter == GAP {
-        config.gap_weight
-    } else if row_letter == column_letter {
-        config.match_weight
-    } else {
-        config.mismatch_weight
-    };
 }
 
 fn traceback_sw_top(
     row_seq: &[Letter],
-    config: LocalAlignmentConfig,
     result: &mut LocalAlignmentResult,
     current_i: usize,
 ) {
@@ -207,12 +194,10 @@ fn traceback_sw_top(
     result.aligned_row_seq.start -= 1;
     result.aligned_row_seq.data.push(row_letter);
     result.aligned_column_seq.data.push(GAP);
-    result.score += config.gap_weight;
 }
 
 fn traceback_sw_left(
     column_seq: &[Letter],
-    config: LocalAlignmentConfig,
     result: &mut LocalAlignmentResult,
     current_j: usize,
 ) {
@@ -220,7 +205,6 @@ fn traceback_sw_left(
     result.aligned_row_seq.data.push(GAP);
     result.aligned_column_seq.start -= 1;
     result.aligned_column_seq.data.push(column_letter);
-    result.score += config.gap_weight;
 }
 
 #[cfg(test)]

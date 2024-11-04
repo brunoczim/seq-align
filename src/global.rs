@@ -5,7 +5,6 @@ use crate::{
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[non_exhaustive]
 pub struct GlobalAlignmentConfig {
     pub match_weight: Score,
     pub mismatch_weight: Score,
@@ -23,6 +22,7 @@ pub struct GlobalAlignmentResult {
     pub aligned_row_seq: Vec<Letter>,
     pub aligned_column_seq: Vec<Letter>,
     pub score: Score,
+    pub identity: u64,
 }
 
 pub fn needleman_wunsch(
@@ -31,24 +31,25 @@ pub fn needleman_wunsch(
     config: GlobalAlignmentConfig,
 ) -> GlobalAlignmentResult {
     let matrix = compute_nw_matrix(row_seq, column_seq, config);
-    traceback_nw_best_alignment(row_seq, column_seq, config, &matrix)
+    traceback_nw_best_alignment(row_seq, column_seq, &matrix)
 }
 
 pub fn traceback_nw_best_alignment(
     row_seq: &[Letter],
     column_seq: &[Letter],
-    config: GlobalAlignmentConfig,
     matrix: &AlignmentMatrix,
 ) -> GlobalAlignmentResult {
+    let mut current_i = matrix.height() - 1;
+    let mut current_j = matrix.width() - 1;
+
     let initial_capacity = row_seq.len() + column_seq.len();
     let mut result = GlobalAlignmentResult {
         aligned_row_seq: Vec::with_capacity(initial_capacity),
         aligned_column_seq: Vec::with_capacity(initial_capacity),
-        score: 0,
+        score: matrix[[current_i, current_j]],
+        identity: 0,
     };
 
-    let mut current_i = matrix.height() - 1;
-    let mut current_j = matrix.width() - 1;
     while current_i > 0 && current_j > 0 {
         let top_left = matrix[[current_i - 1, current_j - 1]];
         let top = matrix[[current_i - 1, current_j]];
@@ -61,17 +62,16 @@ pub fn traceback_nw_best_alignment(
             traceback_nw_top_left(
                 row_seq,
                 column_seq,
-                config,
                 &mut result,
                 current_i,
                 current_j,
             );
         } else if current_i > 0 && top == maximum {
             current_i -= 1;
-            traceback_nw_top(row_seq, config, &mut result, current_i);
+            traceback_nw_top(row_seq, &mut result, current_i);
         } else {
             current_j -= 1;
-            traceback_nw_left(column_seq, config, &mut result, current_j);
+            traceback_nw_left(column_seq, &mut result, current_j);
         }
     }
 
@@ -172,7 +172,6 @@ fn compute_nw_matrix_cell(
 fn traceback_nw_top_left(
     row_seq: &[Letter],
     column_seq: &[Letter],
-    config: GlobalAlignmentConfig,
     result: &mut GlobalAlignmentResult,
     current_i: usize,
     current_j: usize,
@@ -181,38 +180,29 @@ fn traceback_nw_top_left(
     let column_letter = column_seq.get(current_j).normalize_letter();
     result.aligned_row_seq.push(row_letter);
     result.aligned_column_seq.push(column_letter);
-
-    result.score += if row_letter == GAP || column_letter == GAP {
-        config.gap_weight
-    } else if row_letter == column_letter {
-        config.match_weight
-    } else {
-        config.mismatch_weight
-    };
+    if row_letter == column_letter && row_letter != GAP {
+        result.identity += 1;
+    }
 }
 
 fn traceback_nw_top(
     row_seq: &[Letter],
-    config: GlobalAlignmentConfig,
     result: &mut GlobalAlignmentResult,
     current_i: usize,
 ) {
     let row_letter = row_seq.get(current_i).normalize_letter();
     result.aligned_row_seq.push(row_letter);
     result.aligned_column_seq.push(GAP);
-    result.score += config.gap_weight;
 }
 
 fn traceback_nw_left(
     column_seq: &[Letter],
-    config: GlobalAlignmentConfig,
     result: &mut GlobalAlignmentResult,
     current_j: usize,
 ) {
     let column_letter = column_seq.get(current_j).normalize_letter();
     result.aligned_row_seq.push(GAP);
     result.aligned_column_seq.push(column_letter);
-    result.score += config.gap_weight;
 }
 
 #[cfg(test)]
@@ -235,6 +225,7 @@ mod test {
             aligned_row_seq: vec!['W', 'H', 'A', 'T'],
             aligned_column_seq: vec!['W', 'H', 'Y', '-'],
             score: -1,
+            identity: 2,
         };
 
         let actual_result = needleman_wunsch(
@@ -260,6 +251,7 @@ mod test {
             aligned_row_seq: vec!['G', 'C', 'A', 'T', '-', 'G', 'C', 'G'],
             aligned_column_seq: vec!['G', '-', 'A', 'T', 'T', 'A', 'C', 'A'],
             score: 0,
+            identity: 4,
         };
 
         let actual_result = needleman_wunsch(
