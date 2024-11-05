@@ -135,7 +135,7 @@ fn main() {
             PrettyPrint {
                 row_seq_name: human_name,
                 column_seq_name: candidate_name,
-                max_width: 75,
+                max_width: 80,
                 result: &result,
             }
         );

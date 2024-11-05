@@ -24,7 +24,14 @@ pub struct GlobalAlignmentResult {
     pub aligned_row_seq: Vec<Letter>,
     pub aligned_column_seq: Vec<Letter>,
     pub score: Score,
-    pub identity: u64,
+    pub identity_numer: u32,
+    pub identity_denom: u32,
+}
+
+impl GlobalAlignmentResult {
+    pub fn identity(&self) -> f64 {
+        f64::from(self.identity_numer) / f64::from(self.identity_denom)
+    }
 }
 
 pub fn needleman_wunsch(
@@ -49,7 +56,8 @@ pub fn traceback_nw_best_alignment(
         aligned_row_seq: Vec::with_capacity(initial_capacity),
         aligned_column_seq: Vec::with_capacity(initial_capacity),
         score: matrix[[current_i, current_j]],
-        identity: 0,
+        identity_numer: 0,
+        identity_denom: 0,
     };
 
     while current_i > 0 && current_j > 0 {
@@ -81,6 +89,7 @@ pub fn traceback_nw_best_alignment(
     result.aligned_column_seq.shrink_to_fit();
     result.aligned_row_seq.reverse();
     result.aligned_column_seq.reverse();
+    result.identity_denom = result.identity_denom.max(1);
     result
 }
 
@@ -182,8 +191,9 @@ fn traceback_nw_top_left(
     let column_letter = column_seq.get(current_j).normalize_letter();
     result.aligned_row_seq.push(row_letter);
     result.aligned_column_seq.push(column_letter);
+    result.identity_denom += 1;
     if row_letter == column_letter && row_letter != GAP {
-        result.identity += 1;
+        result.identity_numer += 1;
     }
 }
 
@@ -217,11 +227,13 @@ pub struct PrettyPrint<'a> {
 
 impl<'a> fmt::Display for PrettyPrint<'a> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let identity = (100_000.0 * self.result.identity()).round() / 1000.0;
         write!(f, "# score: {}\n", self.result.score)?;
-        write!(f, "# identity: {}\n", self.result.identity)?;
+        write!(f, "# identity: {}%\n", identity)?;
         write!(f, "# sequence above: {}\n", self.row_seq_name)?;
         write!(f, "# sequence below: {}\n", self.column_seq_name)?;
         write!(f, "\n")?;
+
         let length = self
             .result
             .aligned_row_seq
@@ -248,6 +260,7 @@ impl<'a> fmt::Display for PrettyPrint<'a> {
                 )?;
             }
             write!(f, "\n")?;
+
             let row_block =
                 &self.result.aligned_row_seq[block_start .. block_end];
             let column_block =
@@ -290,7 +303,8 @@ mod test {
             aligned_row_seq: vec!['W', 'H', 'A', 'T'],
             aligned_column_seq: vec!['W', 'H', 'Y', '-'],
             score: -1,
-            identity: 2,
+            identity_numer: 2,
+            identity_denom: 3,
         };
 
         let actual_result = needleman_wunsch(
@@ -316,7 +330,8 @@ mod test {
             aligned_row_seq: vec!['G', 'C', 'A', 'T', '-', 'G', 'C', 'G'],
             aligned_column_seq: vec!['G', '-', 'A', 'T', 'T', 'A', 'C', 'A'],
             score: 0,
-            identity: 4,
+            identity_numer: 4,
+            identity_denom: 6,
         };
 
         let actual_result = needleman_wunsch(
