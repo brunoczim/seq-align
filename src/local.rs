@@ -31,73 +31,122 @@ pub struct LocalAlignmentResult {
     pub score: Score,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+enum TracebackStep {
+    TopLeft,
+    Top,
+    Left,
+}
+
 pub fn best_smith_waterman(
     row_seq: &[Letter],
     column_seq: &[Letter],
     config: LocalAlignmentConfig,
-) -> LocalAlignmentResult {
+) -> Vec<LocalAlignmentResult> {
     let matrix = compute_sw_matrix(row_seq, column_seq, config);
-    traceback_best_sw_alignment(row_seq, column_seq, &matrix)
+    traceback_best_sw_alignment(row_seq, column_seq, config, &matrix)
 }
 
 pub fn traceback_best_sw_alignment(
     row_seq: &[Letter],
     column_seq: &[Letter],
+    config: LocalAlignmentConfig,
     matrix: &AlignmentMatrix,
-) -> LocalAlignmentResult {
-    let (max_i, max_j) = matrix
-        .argmax_rev()
-        .unwrap_or((matrix.height() - 1, matrix.width() - 1));
-    let mut current_i = max_i;
-    let mut current_j = max_j;
+) -> Vec<LocalAlignmentResult> {
+    let mut results = Vec::new();
+    for (max_i, max_j) in matrix.argmax_many() {
+        let mut current_i = max_i;
+        let mut current_j = max_j;
 
-    let initial_capacity = row_seq.len() + column_seq.len();
-    let mut result = LocalAlignmentResult {
-        aligned_row_seq: LocallyAlignedSeq {
-            start: max_i,
-            end: max_i,
-            data: Vec::with_capacity(initial_capacity),
-        },
-        aligned_column_seq: LocallyAlignedSeq {
-            start: max_j,
-            end: max_j,
-            data: Vec::with_capacity(initial_capacity),
-        },
-        score: matrix[[max_i, max_j]],
-    };
+        let initial_capacity = row_seq.len() + column_seq.len();
+        let mut result = LocalAlignmentResult {
+            aligned_row_seq: LocallyAlignedSeq {
+                start: max_i,
+                end: max_i,
+                data: Vec::with_capacity(initial_capacity),
+            },
+            aligned_column_seq: LocallyAlignedSeq {
+                start: max_j,
+                end: max_j,
+                data: Vec::with_capacity(initial_capacity),
+            },
+            score: matrix[[max_i, max_j]],
+        };
 
-    while matrix[[current_i, current_j]] != 0 {
-        let top_left = matrix[[current_i - 1, current_j - 1]];
-        let top = matrix[[current_i - 1, current_j]];
-        let left = matrix[[current_i, current_j - 1]];
-        let maximum = top_left.max(top).max(left);
+        while matrix[[current_i, current_j]] != 0 {
+            let current_score = matrix[[current_i, current_j]];
+            let mut maybe_step = None;
+            if current_i > 0 {
+                let previous_score = matrix[[current_i - 1, current_j]];
+                let penalty = config.gap_penalty;
+                if current_score == previous_score + penalty {
+                    maybe_step = Some(TracebackStep::Top);
+                }
+            }
+            if maybe_step.is_none() && current_j > 0 {
+                let previous_score = matrix[[current_i, current_j - 1]];
+                let penalty = config.gap_penalty;
+                if current_score == previous_score + penalty {
+                    maybe_step = Some(TracebackStep::Left);
+                }
+            }
+            let step = maybe_step.unwrap_or(TracebackStep::TopLeft);
 
-        if current_i > 0
-            && current_j > 0
-            && (top_left == maximum || top_left == 0)
-        {
-            current_i -= 1;
-            current_j -= 1;
-            traceback_sw_top_left(
-                row_seq,
-                column_seq,
-                &mut result,
-                current_i,
-                current_j,
-            );
-        } else if current_i > 0 && (top == maximum || top == 0) {
-            current_i -= 1;
-            traceback_sw_top(row_seq, &mut result, current_i);
-        } else {
-            current_j -= 1;
-            traceback_sw_left(column_seq, &mut result, current_j);
+            match step {
+                TracebackStep::TopLeft => {
+                    current_i -= 1;
+                    current_j -= 1;
+                    traceback_sw_top_left(
+                        row_seq,
+                        column_seq,
+                        &mut result,
+                        current_i,
+                        current_j,
+                    );
+                },
+                TracebackStep::Top => {
+                    current_i -= 1;
+                    traceback_sw_top(row_seq, &mut result, current_i);
+                },
+                TracebackStep::Left => {
+                    current_j -= 1;
+                    traceback_sw_left(column_seq, &mut result, current_j);
+                },
+            }
+
+            let top_left = matrix[[current_i - 1, current_j - 1]];
+            let top = matrix[[current_i - 1, current_j]];
+            let left = matrix[[current_i, current_j - 1]];
+            let maximum = top_left.max(top).max(left);
+
+            if current_i > 0
+                && current_j > 0
+                && (top_left == maximum || top_left == 0)
+            {
+                current_i -= 1;
+                current_j -= 1;
+                traceback_sw_top_left(
+                    row_seq,
+                    column_seq,
+                    &mut result,
+                    current_i,
+                    current_j,
+                );
+            } else if current_i > 0 && (top == maximum || top == 0) {
+                current_i -= 1;
+                traceback_sw_top(row_seq, &mut result, current_i);
+            } else {
+                current_j -= 1;
+                traceback_sw_left(column_seq, &mut result, current_j);
+            }
         }
+
+        result.aligned_row_seq.data.reverse();
+        result.aligned_column_seq.data.reverse();
+
+        results.push(result);
     }
-
-    result.aligned_row_seq.data.reverse();
-    result.aligned_column_seq.data.reverse();
-
-    result
+    results
 }
 
 pub fn compute_sw_matrix(
@@ -226,7 +275,7 @@ mod test {
             gap_penalty: -2,
         };
 
-        let expected_result = LocalAlignmentResult {
+        let expected_result = vec![LocalAlignmentResult {
             aligned_row_seq: LocallyAlignedSeq {
                 start: 1,
                 end: 7,
@@ -238,7 +287,7 @@ mod test {
                 data: vec!['G', 'T', 'T', '-', 'A', 'C'],
             },
             score: 13,
-        };
+        }];
 
         let actual_result = best_smith_waterman(
             &input_row_seq[..],

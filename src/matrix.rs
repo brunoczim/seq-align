@@ -89,24 +89,19 @@ impl AlignmentMatrix {
             .map(|(k, _)| self.unpack_index(k))
     }
 
-    pub fn argmax_rev(&self) -> Option<(usize, usize)> {
-        self.buf
-            .iter()
-            .copied()
-            .enumerate()
-            .rev()
-            .max_by_key(|(_, value)| *value)
-            .map(|(k, _)| self.unpack_index(k))
-    }
-
-    pub fn argmin_rev(&self) -> Option<(usize, usize)> {
-        self.buf
-            .iter()
-            .copied()
-            .enumerate()
-            .rev()
-            .min_by_key(|(_, value)| *value)
-            .map(|(k, _)| self.unpack_index(k))
+    pub fn argmax_many(&self) -> Vec<(usize, usize)> {
+        let maybe_max = self.max();
+        if let Some(max) = maybe_max {
+            self.buf
+                .iter()
+                .copied()
+                .enumerate()
+                .filter(|(_, value)| *value == max)
+                .map(|(k, _)| self.unpack_index(k))
+                .collect()
+        } else {
+            Vec::new()
+        }
     }
 }
 
