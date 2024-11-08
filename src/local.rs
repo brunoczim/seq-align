@@ -6,14 +6,14 @@ use crate::{
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct LocalAlignmentConfig {
-    pub match_weight: Score,
-    pub mismatch_weight: Score,
-    pub gap_weight: Score,
+    pub match_penalty: Score,
+    pub mismatch_penalty: Score,
+    pub gap_penalty: Score,
 }
 
 impl Default for LocalAlignmentConfig {
     fn default() -> Self {
-        Self { match_weight: 1, mismatch_weight: -1, gap_weight: -2 }
+        Self { match_penalty: 1, mismatch_penalty: -1, gap_penalty: -2 }
     }
 }
 
@@ -157,15 +157,15 @@ fn compute_sw_matrix_cell(
 
     let row_letter = row_seq.get(pred_i).normalize_letter();
     let column_letter = column_seq.get(pred_j).normalize_letter();
-    let no_gap_weight = if row_letter == column_letter {
-        config.match_weight
+    let no_gap_penalty = if row_letter == column_letter {
+        config.match_penalty
     } else {
-        config.mismatch_weight
+        config.mismatch_penalty
     };
-    let no_gap_score = top_left + no_gap_weight;
+    let no_gap_score = top_left + no_gap_penalty;
 
     let best_gap_neighbor = top.max(left);
-    let best_gap_score = best_gap_neighbor + config.gap_weight;
+    let best_gap_score = best_gap_neighbor + config.gap_penalty;
 
     matrix[[pred_i + 1, pred_j + 1]] = best_gap_score.max(no_gap_score).max(0);
 }
@@ -221,9 +221,9 @@ mod test {
         let input_row_seq = ['G', 'G', 'T', 'T', 'G', 'A', 'C', 'T', 'A'];
         let input_column_seq = ['T', 'G', 'T', 'T', 'A', 'C', 'G', 'G'];
         let input_config = LocalAlignmentConfig {
-            match_weight: 3,
-            mismatch_weight: -3,
-            gap_weight: -2,
+            match_penalty: 3,
+            mismatch_penalty: -3,
+            gap_penalty: -2,
         };
 
         let expected_result = LocalAlignmentResult {

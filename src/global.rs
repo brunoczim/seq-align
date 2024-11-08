@@ -8,14 +8,14 @@ use crate::{
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct GlobalAlignmentConfig {
-    pub match_weight: Score,
-    pub mismatch_weight: Score,
-    pub gap_weight: Score,
+    pub match_penalty: Score,
+    pub mismatch_penalty: Score,
+    pub gap_penalty: Score,
 }
 
 impl Default for GlobalAlignmentConfig {
     fn default() -> Self {
-        Self { match_weight: 1, mismatch_weight: -1, gap_weight: -2 }
+        Self { match_penalty: 1, mismatch_penalty: -1, gap_penalty: -2 }
     }
 }
 
@@ -34,18 +34,26 @@ impl GlobalAlignmentResult {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+enum TracebackStep {
+    TopLeft,
+    Top,
+    Left,
+}
+
 pub fn needleman_wunsch(
     row_seq: &[Letter],
     column_seq: &[Letter],
     config: GlobalAlignmentConfig,
 ) -> GlobalAlignmentResult {
     let matrix = compute_nw_matrix(row_seq, column_seq, config);
-    traceback_nw_best_alignment(row_seq, column_seq, &matrix)
+    traceback_nw_best_alignment(row_seq, column_seq, config, &matrix)
 }
 
 pub fn traceback_nw_best_alignment(
     row_seq: &[Letter],
     column_seq: &[Letter],
+    config: GlobalAlignmentConfig,
     matrix: &AlignmentMatrix,
 ) -> GlobalAlignmentResult {
     let mut current_i = matrix.height() - 1;
@@ -60,28 +68,45 @@ pub fn traceback_nw_best_alignment(
         identity_denom: 0,
     };
 
-    while current_i > 0 && current_j > 0 {
-        let top_left = matrix[[current_i - 1, current_j - 1]];
-        let top = matrix[[current_i - 1, current_j]];
-        let left = matrix[[current_i, current_j - 1]];
-        let maximum = top_left.max(top).max(left);
+    while current_i > 0 || current_j > 0 {
+        let current_score = matrix[[current_i, current_j]];
+        let mut maybe_step = None;
+        if current_i > 0 {
+            let previous_score = matrix[[current_i - 1, current_j]];
+            let penalty = config.gap_penalty;
+            if current_score == previous_score + penalty {
+                maybe_step = Some(TracebackStep::Top);
+            }
+        }
+        if maybe_step.is_none() && current_j > 0 {
+            let previous_score = matrix[[current_i, current_j - 1]];
+            let penalty = config.gap_penalty;
+            if current_score == previous_score + penalty {
+                maybe_step = Some(TracebackStep::Left);
+            }
+        }
+        let step = maybe_step.unwrap_or(TracebackStep::TopLeft);
 
-        if current_i > 0 && current_j > 0 && top_left == maximum {
-            current_i -= 1;
-            current_j -= 1;
-            traceback_nw_top_left(
-                row_seq,
-                column_seq,
-                &mut result,
-                current_i,
-                current_j,
-            );
-        } else if current_i > 0 && top == maximum {
-            current_i -= 1;
-            traceback_nw_top(row_seq, &mut result, current_i);
-        } else {
-            current_j -= 1;
-            traceback_nw_left(column_seq, &mut result, current_j);
+        match step {
+            TracebackStep::TopLeft => {
+                current_i -= 1;
+                current_j -= 1;
+                traceback_nw_top_left(
+                    row_seq,
+                    column_seq,
+                    &mut result,
+                    current_i,
+                    current_j,
+                );
+            },
+            TracebackStep::Top => {
+                current_i -= 1;
+                traceback_nw_top(row_seq, &mut result, current_i);
+            },
+            TracebackStep::Left => {
+                current_j -= 1;
+                traceback_nw_left(column_seq, &mut result, current_j);
+            },
         }
     }
 
@@ -113,11 +138,11 @@ fn fill_nw_matrix_base(
     matrix: &mut AlignmentMatrix,
 ) {
     for j in 1 ..= column_seq.len() {
-        let score = (j as Score) * config.gap_weight;
+        let score = (j as Score) * config.gap_penalty;
         matrix[[0, j]] = score;
     }
     for i in 1 ..= row_seq.len() {
-        let score = (i as Score) * config.gap_weight;
+        let score = (i as Score) * config.gap_penalty;
         matrix[[i, 0]] = score;
     }
 }
@@ -167,15 +192,15 @@ fn compute_nw_matrix_cell(
 
     let row_letter = row_seq.get(pred_i).normalize_letter();
     let column_letter = column_seq.get(pred_j).normalize_letter();
-    let no_gap_weight = if row_letter == column_letter {
-        config.match_weight
+    let no_gap_penalty = if row_letter == column_letter {
+        config.match_penalty
     } else {
-        config.mismatch_weight
+        config.mismatch_penalty
     };
-    let no_gap_score = top_left + no_gap_weight;
+    let no_gap_score = top_left + no_gap_penalty;
 
     let best_gap_neighbor = top.max(left);
-    let best_gap_score = best_gap_neighbor + config.gap_weight;
+    let best_gap_score = best_gap_neighbor + config.gap_penalty;
 
     matrix[[pred_i + 1, pred_j + 1]] = best_gap_score.max(no_gap_score);
 }
@@ -294,9 +319,9 @@ mod test {
         let input_row_seq = ['W', 'H', 'A', 'T'];
         let input_column_seq = ['W', 'H', 'Y'];
         let input_config = GlobalAlignmentConfig {
-            match_weight: 1,
-            mismatch_weight: -1,
-            gap_weight: -2,
+            match_penalty: 1,
+            mismatch_penalty: -1,
+            gap_penalty: -2,
         };
 
         let expected_result = GlobalAlignmentResult {
@@ -321,13 +346,13 @@ mod test {
         let input_row_seq = ['G', 'C', 'A', 'T', 'G', 'C', 'G'];
         let input_column_seq = ['G', 'A', 'T', 'T', 'A', 'C', 'A'];
         let input_config = GlobalAlignmentConfig {
-            match_weight: 1,
-            mismatch_weight: -1,
-            gap_weight: -1,
+            match_penalty: 1,
+            mismatch_penalty: -1,
+            gap_penalty: -1,
         };
 
         let expected_result = GlobalAlignmentResult {
-            aligned_row_seq: vec!['G', 'C', 'A', 'T', '-', 'G', 'C', 'G'],
+            aligned_row_seq: vec!['G', 'C', 'A', 'T', 'G', '-', 'C', 'G'],
             aligned_column_seq: vec!['G', '-', 'A', 'T', 'T', 'A', 'C', 'A'],
             score: 0,
             identity_numer: 4,

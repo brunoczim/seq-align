@@ -108,9 +108,9 @@ const ONCORHYNCHUS_MYKISS: &[Letter] = &[
 ];
 
 const CONFIG: GlobalAlignmentConfig = GlobalAlignmentConfig {
-    gap_weight: -2,
-    match_weight: 1,
-    mismatch_weight: -1,
+    gap_penalty: -2,
+    match_penalty: 1,
+    mismatch_penalty: -1,
 };
 
 fn main() {
