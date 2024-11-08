@@ -284,8 +284,19 @@ pub struct PrettyPrintOne<'a> {
 impl<'a> fmt::Display for PrettyPrintOne<'a> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let identity = (100_000.0 * self.result.identity()).round() / 1000.0;
-        write!(f, "# sequence bbove : {}\n", self.row_seq_name)?;
+        write!(f, "# sequence above : {}\n", self.row_seq_name)?;
         write!(f, "# sequence below : {}\n", self.column_seq_name)?;
+        write!(
+            f,
+            "# range above    : {}..{}\n",
+            self.result.aligned_row_seq.start, self.result.aligned_row_seq.end
+        )?;
+        write!(
+            f,
+            "# range below    : {}..{}\n",
+            self.result.aligned_column_seq.start,
+            self.result.aligned_column_seq.end
+        )?;
         write!(f, "# identity       : {}%\n", identity)?;
         write!(f, "# score          : {}\n", self.result.score)?;
         write!(f, "\n")?;
@@ -296,26 +307,12 @@ impl<'a> fmt::Display for PrettyPrintOne<'a> {
             .data
             .len()
             .max(self.result.aligned_column_seq.data.len());
-        let mut above_k = self.result.aligned_row_seq.start;
-        let mut below_k = self.result.aligned_column_seq.start;
-        while above_k < self.result.aligned_row_seq.end
-            || below_k < self.result.aligned_column_seq.end
-        {
-            let above_block_start = above_k;
-            let above_block_end =
-                length.min(above_block_start + self.max_width);
-            let below_block_start = below_k;
-            let below_block_end =
-                length.min(below_block_start + self.max_width);
-            write!(
-                f,
-                "# block above : {above_block_start}..{above_block_end}\n"
-            )?;
-            write!(
-                f,
-                "# block below : {below_block_start}..{below_block_end}\n"
-            )?;
-            for k in above_block_start .. above_block_end {
+        let mut i = 0;
+        while i < length {
+            let block_start = i;
+            let block_end = length.min(block_start + self.max_width);
+            write!(f, "# block : {block_start}..{block_end}\n")?;
+            for k in block_start .. block_end {
                 write!(
                     f,
                     "{}",
@@ -323,7 +320,7 @@ impl<'a> fmt::Display for PrettyPrintOne<'a> {
                 )?;
             }
             write!(f, "\n")?;
-            for k in below_block_start .. below_block_end {
+            for k in block_start .. block_end {
                 write!(
                     f,
                     "{}",
@@ -336,10 +333,10 @@ impl<'a> fmt::Display for PrettyPrintOne<'a> {
             }
             write!(f, "\n")?;
 
-            let row_block = &self.result.aligned_row_seq.data
-                [above_block_start .. above_block_end];
-            let column_block = &self.result.aligned_column_seq.data
-                [below_block_start .. below_block_end];
+            let row_block =
+                &self.result.aligned_row_seq.data[block_start .. block_end];
+            let column_block =
+                &self.result.aligned_column_seq.data[block_start .. block_end];
             let mut identity_iter = row_block.iter().zip(column_block);
             while let Some(k) =
                 (&mut identity_iter).position(|(row_letter, column_letter)| {
@@ -352,8 +349,7 @@ impl<'a> fmt::Display for PrettyPrintOne<'a> {
                 write!(f, "*")?;
             }
             write!(f, "\n\n")?;
-            above_k = above_block_end;
-            below_k = below_block_end;
+            i = block_end;
         }
         Ok(())
     }
@@ -373,9 +369,10 @@ impl fmt::Display for PrettyPrintMany<'_> {
             write!(f, "No local alignment found.")?;
         }
         for (i, result) in self.results.iter().enumerate() {
-            write!(f, "#### #### #### #### #### #### #### ####")?;
-            write!(f, "Best local alignment #{i}")?;
-            write!(f, "#### #### #### #### #### #### #### ####")?;
+            write!(f, "#### #### #### #### #### #### #### ####\n")?;
+            write!(f, "Best local alignment #{i}\n")?;
+            write!(f, "#### #### #### #### #### #### #### ####\n")?;
+            write!(f, "\n")?;
             let pretty_print_one = PrettyPrintOne {
                 result,
                 row_seq_name: self.row_seq_name,
