@@ -3,6 +3,41 @@ use seq_align::{
     letter::Letter,
 };
 
+fn main() {
+    let candidates = [
+        ("Equus Caballus", EQUUS_CABALLUS),
+        ("Odocoileus Virginianus", ODOCOILEUS_VIRGINIANUS),
+        ("Bos Taurus", BOS_TAURUS),
+        ("Sus Scrofa", SUS_SCROFA),
+        ("Chrysocyon Brachyurus", CHRYSOCYON_BRACHYURUS),
+        ("Gallus Gallus", GALLUS_GALLUS),
+        ("Oncorhynchus Mykiss", ONCORHYNCHUS_MYKISS),
+    ];
+
+    let human_name = "Homo Sapiens";
+    let human_sequence = HOMO_SAPIENS;
+
+    for (candidate_name, candidate_sequence) in candidates {
+        let result =
+            needleman_wunsch(human_sequence, candidate_sequence, CONFIG);
+        println!(
+            "{}",
+            PrettyPrint {
+                row_seq_name: human_name,
+                column_seq_name: candidate_name,
+                max_width: 80,
+                result: &result,
+            }
+        );
+    }
+}
+
+const CONFIG: GlobalAlignmentConfig = GlobalAlignmentConfig {
+    gap_penalty: -2,
+    match_penalty: 1,
+    mismatch_penalty: -1,
+};
+
 const HOMO_SAPIENS: &[Letter] = &[
     'V', 'L', 'S', 'P', 'A', 'D', 'K', 'T', 'N', 'V', 'K', 'A', 'A', 'W', 'G',
     'K', 'V', 'G', 'A', 'H', 'A', 'G', 'E', 'Y', 'G', 'A', 'E', 'A', 'L', 'E',
@@ -106,38 +141,3 @@ const ONCORHYNCHUS_MYKISS: &[Letter] = &[
     'P', 'E', 'V', 'H', 'I', 'A', 'V', 'D', 'K', 'F', 'L', 'A', 'A', 'V', 'S',
     'A', 'A', 'L', 'A', 'D', 'K', 'Y', 'R',
 ];
-
-const CONFIG: GlobalAlignmentConfig = GlobalAlignmentConfig {
-    gap_penalty: -2,
-    match_penalty: 1,
-    mismatch_penalty: -1,
-};
-
-fn main() {
-    let candidates = [
-        ("Equus Caballus", EQUUS_CABALLUS),
-        ("Odocoileus Virginianus", ODOCOILEUS_VIRGINIANUS),
-        ("Bos Taurus", BOS_TAURUS),
-        ("Sus Scrofa", SUS_SCROFA),
-        ("Chrysocyon Brachyurus", CHRYSOCYON_BRACHYURUS),
-        ("Gallus Gallus", GALLUS_GALLUS),
-        ("Oncorhynchus Mykiss", ONCORHYNCHUS_MYKISS),
-    ];
-
-    let human_name = "Homo Sapiens";
-    let human_sequence = HOMO_SAPIENS;
-
-    for (candidate_name, candidate_sequence) in candidates {
-        let result =
-            needleman_wunsch(human_sequence, candidate_sequence, CONFIG);
-        println!(
-            "{}",
-            PrettyPrint {
-                row_seq_name: human_name,
-                column_seq_name: candidate_name,
-                max_width: 80,
-                result: &result,
-            }
-        );
-    }
-}

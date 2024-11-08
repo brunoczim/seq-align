@@ -3,6 +3,25 @@ use seq_align::{
     local::{best_smith_waterman, LocalAlignmentConfig, PrettyPrintMany},
 };
 
+fn main() {
+    let results = best_smith_waterman(ROW_SEQUENCE, COLUMN_SEQUENCE, CONFIG);
+    println!(
+        "{}",
+        PrettyPrintMany {
+            row_seq_name: "<row sequence>",
+            column_seq_name: "<column sequence>",
+            max_width: 80,
+            results: &results,
+        }
+    );
+}
+
+const CONFIG: LocalAlignmentConfig = LocalAlignmentConfig {
+    gap_penalty: -2,
+    match_penalty: 1,
+    mismatch_penalty: -1,
+};
+
 const ROW_SEQUENCE: &[Letter] = &[
     'M', 'T', 'E', 'N', 'S', 'T', 'S', 'T', 'P', 'A', 'A', 'K', 'P', 'K', 'R',
     'A', 'K', 'A', 'S', 'K', 'K', 'S', 'T', 'D', 'H', 'P', 'K', 'Y', 'S', 'D',
@@ -36,22 +55,3 @@ const COLUMN_SEQUENCE: &[Letter] = &[
     'K', 'V', 'T', 'K', 'P', 'K', 'T', 'P', 'A', 'K', 'P', 'K', 'K', 'A', 'A',
     'P', 'K', 'K', 'K',
 ];
-
-const CONFIG: LocalAlignmentConfig = LocalAlignmentConfig {
-    gap_penalty: -2,
-    match_penalty: 1,
-    mismatch_penalty: -1,
-};
-
-fn main() {
-    let results = best_smith_waterman(ROW_SEQUENCE, COLUMN_SEQUENCE, CONFIG);
-    println!(
-        "{}",
-        PrettyPrintMany {
-            row_seq_name: "<row sequence>",
-            column_seq_name: "<column sequence>",
-            max_width: 80,
-            results: &results,
-        }
-    );
-}

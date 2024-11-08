@@ -6,10 +6,14 @@ use crate::{
     score::Score,
 };
 
+/// Penalty/base score system of a global alignment.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct LocalAlignmentConfig {
+    /// Added when letters match.
     pub match_penalty: Score,
+    /// Added when letters do not match, but it is not a gap.
     pub mismatch_penalty: Score,
+    /// Added when there's a gap.
     pub gap_penalty: Score,
 }
 
@@ -19,35 +23,63 @@ impl Default for LocalAlignmentConfig {
     }
 }
 
+/// An aligned sequence, used in local alignment results.
+///
+/// Corresponds to a slice of an input sequence, possibly with gaps inserted.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct LocallyAlignedSeq {
+    /// Position in the input sequence that delimits where the local alignment
+    /// starts.
     pub start: usize,
+    /// Position in the input sequence that delimits where the local alignment
+    /// ends.
     pub end: usize,
+    /// The aligned slice of the input sequence, with potential gaps.
     pub data: Vec<Letter>,
 }
 
+/// A local alignment, computed by Smith-Waterman.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct LocalAlignmentResult {
+    /// The aligned version of the input sequence that was associated with a
+    /// "row" display in the matrix. It is aligned with the sequence displayed
+    /// as a "column".
     pub aligned_row_seq: LocallyAlignedSeq,
+    /// The aligned version of the input sequence that was associated with a
+    /// "column" display in the matrix. It is aligned with the sequence
+    /// displayed as a "row".
     pub aligned_column_seq: LocallyAlignedSeq,
+    /// Total score of the alignment.
     pub score: Score,
+    /// Numerator of the identity fraction (32-bit).
     pub identity_numer: u32,
+    /// Denominator of the identity fraction (32-bit).
     pub identity_denom: u32,
 }
 
 impl LocalAlignmentResult {
+    /// Computes the identity as a percentage.
     pub fn identity(&self) -> f64 {
         f64::from(self.identity_numer) / f64::from(self.identity_denom)
     }
 }
 
+/// Possible directions during traceback phase.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 enum TracebackStep {
+    /// Towards i - 1, j -1
     TopLeft,
+    /// Towards i - 1, j
     Top,
+    /// Towards i, j - 1
     Left,
 }
 
+/// Computes the Smith-Waterman algorithm, and returns all the local alignments
+/// with the best score.
+/// `row_seq` and `column_seq` are the sequences to be aligned.
+/// `row_seq` will be displayed as a row in the matrix, while `column_seq` will
+/// be displayed as a column in the matrix.
 pub fn best_smith_waterman(
     row_seq: &[Letter],
     column_seq: &[Letter],
@@ -57,6 +89,8 @@ pub fn best_smith_waterman(
     traceback_best_sw_alignment(row_seq, column_seq, config, &matrix)
 }
 
+/// Given Smit-Waterman input and a score matrix already populated, this
+/// function computes the alignment.
 pub fn traceback_best_sw_alignment(
     row_seq: &[Letter],
     column_seq: &[Letter],
@@ -162,6 +196,7 @@ pub fn traceback_best_sw_alignment(
     results
 }
 
+/// This function fills a Smith-Waterman score matrix.
 pub fn compute_sw_matrix(
     row_seq: &[Letter],
     column_seq: &[Letter],
@@ -174,6 +209,7 @@ pub fn compute_sw_matrix(
     matrix
 }
 
+/// This function fills the scores of a Smith-Waterman matrix.
 fn fill_sw_matrix_content(
     row_seq: &[Letter],
     column_seq: &[Letter],
@@ -205,6 +241,9 @@ fn fill_sw_matrix_content(
     }
 }
 
+/// Computes the score of an individual cell of a Smith-Waterman matrix,
+/// assuming that their top-left (pred_i, pred_j), top (pred_i, pred_j + 1) and
+/// left (pred_i + 1, pred_j) cells are already computed and filled.
 fn compute_sw_matrix_cell(
     row_seq: &[Letter],
     column_seq: &[Letter],
@@ -232,6 +271,8 @@ fn compute_sw_matrix_cell(
     matrix[[pred_i + 1, pred_j + 1]] = best_gap_score.max(no_gap_score).max(0);
 }
 
+/// Registers result of a traceback going to a previous top-left cell in a
+/// Smith-Waterman local alignment.
 fn traceback_sw_top_left(
     row_seq: &[Letter],
     column_seq: &[Letter],
@@ -251,6 +292,8 @@ fn traceback_sw_top_left(
     }
 }
 
+/// Registers result of a traceback going to a previous top cell in a
+/// Smith-Waterman local alignment.
 fn traceback_sw_top(
     row_seq: &[Letter],
     result: &mut LocalAlignmentResult,
@@ -262,6 +305,8 @@ fn traceback_sw_top(
     result.aligned_column_seq.data.push(GAP);
 }
 
+/// Registers result of a traceback going to a previous left cell in a
+/// Smith-Waterman local alignment.
 fn traceback_sw_left(
     column_seq: &[Letter],
     result: &mut LocalAlignmentResult,
@@ -273,11 +318,16 @@ fn traceback_sw_left(
     result.aligned_column_seq.data.push(column_letter);
 }
 
+/// Pretty print formatting of _one_ local alignment, as in a report.
 #[derive(Debug, Clone, Copy)]
 pub struct PrettyPrintOne<'a> {
+    /// Print name of the sequence that was associated with a row display.
     pub row_seq_name: &'a str,
+    /// Print name of the sequence that was associated with a column display.
     pub column_seq_name: &'a str,
+    /// An already finished local alignment result.
     pub result: &'a LocalAlignmentResult,
+    /// Maximum width in terms of characters.
     pub max_width: usize,
 }
 
@@ -355,11 +405,17 @@ impl<'a> fmt::Display for PrettyPrintOne<'a> {
     }
 }
 
+/// Pretty print in report formatting of all local alignment in a list of
+/// results.
 #[derive(Debug, Clone, Copy)]
 pub struct PrettyPrintMany<'a> {
+    /// Print name of the sequence that was associated with a row display.
     pub row_seq_name: &'a str,
+    /// Print name of the sequence that was associated with a column display.
     pub column_seq_name: &'a str,
+    /// A list of already finished local alignments with best scores.
     pub results: &'a [LocalAlignmentResult],
+    /// Maximum width in terms of characters.
     pub max_width: usize,
 }
 

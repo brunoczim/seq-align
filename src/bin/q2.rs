@@ -3,16 +3,6 @@ use seq_align::{
     letter::Letter,
 };
 
-const ROW_SEQUENCE: &[Letter] = &['G', 'C', 'C', 'G', 'C', 'C', 'G', 'G', 'C'];
-
-const COLUMN_SEQUENCE: &[Letter] = &['C', 'C', 'C', 'C'];
-
-const CONFIG: GlobalAlignmentConfig = GlobalAlignmentConfig {
-    gap_penalty: -4,
-    match_penalty: 7,
-    mismatch_penalty: -3,
-};
-
 fn main() {
     let result = needleman_wunsch(ROW_SEQUENCE, COLUMN_SEQUENCE, CONFIG);
     println!(
@@ -25,3 +15,13 @@ fn main() {
         }
     );
 }
+
+const CONFIG: GlobalAlignmentConfig = GlobalAlignmentConfig {
+    gap_penalty: -4,
+    match_penalty: 7,
+    mismatch_penalty: -3,
+};
+
+const ROW_SEQUENCE: &[Letter] = &['G', 'C', 'C', 'G', 'C', 'C', 'G', 'G', 'C'];
+
+const COLUMN_SEQUENCE: &[Letter] = &['C', 'C', 'C', 'C'];

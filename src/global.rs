@@ -6,10 +6,14 @@ use crate::{
     score::Score,
 };
 
+/// Penalty/base score system of a global alignment.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct GlobalAlignmentConfig {
+    /// Added when letters match.
     pub match_penalty: Score,
+    /// Added when letters do not match, but it is not a gap.
     pub mismatch_penalty: Score,
+    /// Added when there's a gap.
     pub gap_penalty: Score,
 }
 
@@ -19,28 +23,45 @@ impl Default for GlobalAlignmentConfig {
     }
 }
 
+/// Result of the global alignment.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct GlobalAlignmentResult {
+    /// The sequence that was associated with "row" display,
+    /// aligned with the one displayed in a column.
     pub aligned_row_seq: Vec<Letter>,
+    /// The sequence that was associated with "column" display,
+    /// aligned with the one displayed in a row.
     pub aligned_column_seq: Vec<Letter>,
+    /// Total score of the global alignment.
     pub score: Score,
+    /// Numerator of the identity fraction (32-bit).
     pub identity_numer: u32,
+    /// Denominator of the identity fraction (32-bit).
     pub identity_denom: u32,
 }
 
 impl GlobalAlignmentResult {
+    /// Computes the identity as a percentage.
     pub fn identity(&self) -> f64 {
         f64::from(self.identity_numer) / f64::from(self.identity_denom)
     }
 }
 
+/// Possible directions during traceback phase.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 enum TracebackStep {
+    /// Towards i - 1, j -1
     TopLeft,
+    /// Towards i - 1, j
     Top,
+    /// Towards i, j - 1
     Left,
 }
 
+/// Executes the Needleman-Wunsch algorithm and returns the global alignment.
+/// `row_seq` and `column_seq` are the sequences to be aligned.
+/// `row_seq` will be displayed as a row in the matrix, while `column_seq` will
+/// be displayed as a column in the matrix.
 pub fn needleman_wunsch(
     row_seq: &[Letter],
     column_seq: &[Letter],
@@ -50,6 +71,8 @@ pub fn needleman_wunsch(
     traceback_nw_best_alignment(row_seq, column_seq, config, &matrix)
 }
 
+/// Given Needleman-Wunsch input and a score matrix already populated, this
+/// function computes the alignment.
 pub fn traceback_nw_best_alignment(
     row_seq: &[Letter],
     column_seq: &[Letter],
@@ -118,6 +141,7 @@ pub fn traceback_nw_best_alignment(
     result
 }
 
+/// This function fills a Needleman-Wunsch score matrix.
 pub fn compute_nw_matrix(
     row_seq: &[Letter],
     column_seq: &[Letter],
@@ -131,6 +155,12 @@ pub fn compute_nw_matrix(
     matrix
 }
 
+/// This function fills the base "extra" cells of the Needleman-Wunsch score
+/// matrix.
+///
+/// i.e. first column 0, gap, 2*gap, 3*gap, etc
+///
+/// and first row 0, gap, 2*gap, 3*gap, etc
 fn fill_nw_matrix_base(
     row_seq: &[Letter],
     column_seq: &[Letter],
@@ -147,6 +177,9 @@ fn fill_nw_matrix_base(
     }
 }
 
+/// This function fills the "derived" scores of a Needleman-Wunsch matrix,
+/// given a matrix that already has the "extra" prefix gap cells filled by
+/// [`fill_nw_matrix_base`].
 fn fill_nw_matrix_content(
     row_seq: &[Letter],
     column_seq: &[Letter],
@@ -178,6 +211,9 @@ fn fill_nw_matrix_content(
     }
 }
 
+/// Computes the score of an individual cell of a Needleman-Wunsch matrix,
+/// assuming that their top-left (pred_i, pred_j), top (pred_i, pred_j + 1) and
+/// left (pred_i + 1, pred_j) cells are already computed and filled.
 fn compute_nw_matrix_cell(
     row_seq: &[Letter],
     column_seq: &[Letter],
@@ -205,6 +241,8 @@ fn compute_nw_matrix_cell(
     matrix[[pred_i + 1, pred_j + 1]] = best_gap_score.max(no_gap_score);
 }
 
+/// Registers result of a traceback going to a previous top-left cell in a
+/// Needleman-Wunsch global alignment.
 fn traceback_nw_top_left(
     row_seq: &[Letter],
     column_seq: &[Letter],
@@ -222,6 +260,8 @@ fn traceback_nw_top_left(
     }
 }
 
+/// Registers result of a traceback going to a previous top cell in a
+/// Needleman-Wunsch global alignment.
 fn traceback_nw_top(
     row_seq: &[Letter],
     result: &mut GlobalAlignmentResult,
@@ -232,6 +272,8 @@ fn traceback_nw_top(
     result.aligned_column_seq.push(GAP);
 }
 
+/// Registers result of a traceback going to a previous left cell in a
+/// Needleman-Wunsch global alignment.
 fn traceback_nw_left(
     column_seq: &[Letter],
     result: &mut GlobalAlignmentResult,
@@ -242,11 +284,16 @@ fn traceback_nw_left(
     result.aligned_column_seq.push(column_letter);
 }
 
+/// Pretty print formatting of the results, as in a report.
 #[derive(Debug, Clone, Copy)]
 pub struct PrettyPrint<'a> {
+    /// Print name of the sequence that was associated with a row display.
     pub row_seq_name: &'a str,
+    /// Print name of the sequence that was associated with a column display.
     pub column_seq_name: &'a str,
+    /// An already finished global alignment result.
     pub result: &'a GlobalAlignmentResult,
+    /// Maximum width in terms of characters.
     pub max_width: usize,
 }
 

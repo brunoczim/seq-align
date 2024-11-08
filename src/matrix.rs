@@ -8,6 +8,7 @@ use crate::{
     score::{score_digit_count, Score},
 };
 
+/// 2D Matrix of scores
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct AlignmentMatrix {
     buf: Vec<Score>,
@@ -15,18 +16,24 @@ pub struct AlignmentMatrix {
 }
 
 impl AlignmentMatrix {
+    /// Creates a matrix with all elements set to zero,
+    /// of dimensions Height X Width
     pub fn zeroed(height: usize, width: usize) -> Self {
         Self { buf: vec![0; height * width], width }
     }
 
+    /// Number of lines of the matrix.
     pub fn height(&self) -> usize {
         self.buf.len() / self.width()
     }
 
+    /// Number of columns of the matrix.
     pub fn width(&self) -> usize {
         self.width
     }
 
+    /// Packs a two-dimensional index into a one-dimensional index.
+    /// If the index is out of bounds, `None` is returned.
     fn pack_index(&self, i: usize, j: usize) -> Option<usize> {
         if j >= self.width {
             None
@@ -35,24 +42,34 @@ impl AlignmentMatrix {
         }
     }
 
+    /// Unpacks a one-dimensional index into a two-dimensional index.
     fn unpack_index(&self, index: usize) -> (usize, usize) {
         (index / self.width, index % self.width)
     }
 
+    /// Gets a reference to a score identified by given two-dimensional index.
+    /// If the index is out of bounds, `None` is returned.
     pub fn get_ref(&self, i: usize, j: usize) -> Option<&Score> {
         let packed_index = self.pack_index(i, j)?;
         self.buf.get(packed_index)
     }
 
+    /// Gets a mutable reference to a score identified by given two-dimensional
+    /// index, allowing modifications. If the index is out of bounds, `None` is
+    /// returned.
     pub fn get_mut(&mut self, i: usize, j: usize) -> Option<&mut Score> {
         let packed_index = self.pack_index(i, j)?;
         self.buf.get_mut(packed_index)
     }
 
+    /// Gets the value of a score identified by given two-dimensional index.
+    /// If the index is out of bounds, `None` is returned.
     pub fn get(&self, i: usize, j: usize) -> Option<Score> {
         self.get_ref(i, j).copied()
     }
 
+    /// Sets a score value into a cell identified by given two-dimensional
+    /// index. Returns `false` if index is out of bounds.
     #[must_use]
     pub fn set(&mut self, i: usize, j: usize, score: Score) -> bool {
         if let Some(ref_mut) = self.get_mut(i, j) {
@@ -63,14 +80,18 @@ impl AlignmentMatrix {
         }
     }
 
+    /// Returns the maximum score, if matrix is not empty.
     pub fn max(&self) -> Option<Score> {
         self.buf.iter().copied().max()
     }
 
+    /// Returns the minimum score, if matrix is not empty.
     pub fn min(&self) -> Option<Score> {
         self.buf.iter().copied().min()
     }
 
+    /// Returns the two-dimensional index of the first maximum score found, if
+    /// matrix is not empty.
     pub fn argmax(&self) -> Option<(usize, usize)> {
         self.buf
             .iter()
@@ -80,6 +101,8 @@ impl AlignmentMatrix {
             .map(|(k, _)| self.unpack_index(k))
     }
 
+    /// Returns the two-dimensional index of the first minimum score found, if
+    /// matrix is not empty.
     pub fn argmin(&self) -> Option<(usize, usize)> {
         self.buf
             .iter()
@@ -89,6 +112,7 @@ impl AlignmentMatrix {
             .map(|(k, _)| self.unpack_index(k))
     }
 
+    /// Returns the two-dimensional indices of all maximum scores.
     pub fn argmax_many(&self) -> Vec<(usize, usize)> {
         let maybe_max = self.max();
         if let Some(max) = maybe_max {
@@ -137,6 +161,8 @@ impl IndexMut<[usize; 2]> for AlignmentMatrix {
     }
 }
 
+/// Error path triggered when an out of bounds index is used
+/// with square brackets notation: `m[(i, j)]` or `m[[i, j]]`.
 #[cold]
 #[inline(never)]
 fn invalid_index(i: usize, j: usize, height: usize, width: usize) -> ! {
@@ -145,6 +171,9 @@ fn invalid_index(i: usize, j: usize, height: usize, width: usize) -> ! {
     )
 }
 
+/// Used for pretty print formatting.
+///
+/// Counts how many decimal digits are needed to render the index.
 fn index_digit_count(k: usize) -> u32 {
     if k > 0 {
         k.ilog10() + 1
@@ -153,6 +182,7 @@ fn index_digit_count(k: usize) -> u32 {
     }
 }
 
+/// Struct that prints an alignment matrix in textual format.
 /**
  * Example:
 ```text
@@ -250,6 +280,8 @@ impl fmt::Display for PrettyPrint<'_> {
     }
 }
 
+/// Struct that prints an alignment matrix in textual format,
+/// like `PrettyPrint<'_>`, but displays letters identifying sequence elements.
 /**
  * Example:
 ```text
