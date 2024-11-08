@@ -228,10 +228,10 @@ pub struct PrettyPrint<'a> {
 impl<'a> fmt::Display for PrettyPrint<'a> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let identity = (100_000.0 * self.result.identity()).round() / 1000.0;
-        write!(f, "# score: {}\n", self.result.score)?;
-        write!(f, "# identity: {}%\n", identity)?;
-        write!(f, "# sequence above: {}\n", self.row_seq_name)?;
-        write!(f, "# sequence below: {}\n", self.column_seq_name)?;
+        write!(f, "# sequence above : {}\n", self.row_seq_name)?;
+        write!(f, "# sequence below : {}\n", self.column_seq_name)?;
+        write!(f, "# identity       : {}%\n", identity)?;
+        write!(f, "# score          : {}\n", self.result.score)?;
         write!(f, "\n")?;
 
         let length = self
@@ -243,7 +243,7 @@ impl<'a> fmt::Display for PrettyPrint<'a> {
         while i < length {
             let block_start = i;
             let block_end = length.min(block_start + self.max_width);
-            write!(f, "# block: {block_start}..{block_end}\n")?;
+            write!(f, "# block : {block_start}..{block_end}\n")?;
             for k in block_start .. block_end {
                 write!(
                     f,
